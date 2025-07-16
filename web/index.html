@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TRPG 설정집 + 스탯 분배 & 특성 시스템</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Arial', sans-serif;
+      background: #121212;
+      color: #eee;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+    .left-panel {
+      width: 40%;
+      background: #1f1f1f;
+      padding: 30px;
+      overflow-y: auto;
+      box-sizing: border-box;
+      border-right: 2px solid #333;
+      transition: transform 0.3s ease;
+    }
+    .left-panel.closed {
+      transform: translateX(-100%);
+    }
+    .toggle-menu {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: #2c2c2c;
+      border: 1px solid #444;
+      color: #eee;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      z-index: 9999;
+    }
+    .right-panel {
+      flex-grow: 1;
+      background: #181818;
+      padding: 30px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      overflow: hidden;
+      position: relative;
+    }
+    #content-wrapper {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 10px;
+    }
+    .right-panel input, select, .left-panel select {
+      background: #292929;
+      color: #fff;
+      border: 1px solid #555;
+      padding: 8px;
+      border-radius: 5px;
+      margin-bottom: 15px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .stat {
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .stat strong {
+      width: 80px;
+      flex-shrink: 0;
+    }
+    .stat button {
+      background: #444;
+      border: none;
+      color: #fff;
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+    .stat button:disabled {
+      background: #222;
+      cursor: not-allowed;
+    }
+    .submit-btn {
+      margin-top: 20px;
+      padding: 10px;
+      font-size: 16px;
+      background: #00bfa5;
+      color: #121212;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      align-self: flex-start;
+    }
+    .final-stats {
+      white-space: pre-wrap;
+      background: #292929;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 10px;
+      height: 250px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 14px;
+      position: sticky;
+      bottom: 0;
+      z-index: 10;
+      box-shadow: 0 -4px 10px rgba(0,0,0,0.5);
+    }
+    .image-preview {
+      width: 100%;
+      max-height: 180px;
+      object-fit: cover;
+      margin-bottom: 10px;
+      border-radius: 6px;
+    }
+
+    /* 특성 항목 리스트 스타일 - 오른쪽 창 내 자연스러운 배치 */
+    #traits-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 0;
+      margin-bottom: 20px;
+    }
+    .trait {
+      background: #202020;
+      border-radius: 8px;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+      width: calc(50% - 6px);
+      box-sizing: border-box;
+      gap: 10px;
+      transition: background-color 0.3s;
+    }
+    .trait:hover {
+      background-color: #2a2a2a;
+    }
+    .trait img.image-preview {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+      flex-shrink: 0;
+      border-radius: 4px;
+    }
+    .trait span {
+      flex-grow: 1;
+      color: #eee;
+      font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .trait input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 22px;
+      height: 22px;
+      border: 2.5px solid #00bfa5;
+      border-radius: 5px;
+      background-color: transparent;
+      cursor: pointer;
+      position: relative;
+      flex-shrink: 0;
+      transition: background-color 0.3s, border-color 0.3s;
+    }
+    .trait input[type="checkbox"]:hover {
+      border-color: #00fff0;
+    }
+    .trait input[type="checkbox"]:checked {
+      background-color: #00bfa5;
+      border-color: #00bfa5;
+    }
+    .trait input[type="checkbox"]:checked::after {
+      content: "";
+      position: absolute;
+      top: 3px;
+      left: 7px;
+      width: 5px;
+      height: 11px;
+      border: solid #121212;
+      border-width: 0 3px 3px 0;
+      transform: rotate(45deg);
+    }
+
+    /* 믿는 신 선택판넬 스타일 */
+    #faith-container {
+      display: flex;
+      flex-wrap: wrap;
+      max-width: 640px;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+    .faith-option {
+      background: #292929;
+      border: 2px solid transparent;
+      border-radius: 10px;
+      width: 120px;
+      cursor: pointer;
+      text-align: center;
+      padding: 10px;
+      transition: border-color 0.3s;
+      user-select: none;
+      color: #eee;
+      font-size: 14px;
+    }
+    .faith-option img {
+      width: 80px;
+      height: 80px;
+      object-fit: contain;
+      margin-bottom: 8px;
+      border-radius: 6px;
+      pointer-events: none;
+      user-select: none;
+    }
+    .faith-option.selected {
+      border-color: #00bfa5;
+      background-color: #1a7f73;
+      color: #121212;
+      font-weight: bold;
+    }
+
+    .dice-container {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: #2b2b2b;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #444;
+      font-size: 14px;
+      text-align: center;
+      user-select: none;
+    }
+    .dice-container button {
+      margin-top: 5px;
+      padding: 5px 10px;
+      background: #444;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="toggle-menu" onclick="toggleLeftPanel()">📂 메뉴</div>
+
+  <div class="left-panel" id="left-panel">
+    <h1>🌍 세계관 선택</h1>
+    <select id="world-select">
+      <option value="벨루아 대륙">벨루아 대륙</option>
+      <option value="아르케노스 제국">아르케노스 제국</option>
+      <option value="라그나로크 평원">라그나로크 평원</option>
+    </select>
+
+    <img id="world-image" class="image-preview" src="" alt="세계관 이미지" />
+
+    <h2>📜 세계관 설명</h2>
+    <div id="world-description"></div>
+
+    <h2>🛡️ 직업 선택</h2>
+    <select id="job-select">
+      <option value="전사">전사</option>
+      <option value="마법사">마법사</option>
+      <option value="도적">도적</option>
+      <option value="사제">사제</option>
+    </select>
+
+    <h2>🚻 성별 선택</h2>
+    <select id="gender-select">
+      <option value="남성">남성</option>
+      <option value="여성">여성</option>
+      <option value="기타">기타</option>
+    </select>
+
+    <h2>🎯 난이도 선택</h2>
+    <select id="difficulty-select">
+      <option value="쉬움">쉬움</option>
+      <option value="보통" selected>보통</option>
+      <option value="어려움">어려움</option>
+    </select>
+  </div>
+
+  <div class="right-panel">
+    <h1>🧙 캐릭터 생성</h1>
+
+    <div id="content-wrapper">
+      <input type="text" id="char-name" placeholder="캐릭터 이름을 입력하세요" />
+
+      <div id="stats-container"></div>
+      <div id="remaining-points" style="margin-bottom: 20px; font-weight: bold;"></div>
+
+      <h2>특성 선택</h2>
+      <div id="traits-container"></div>
+
+      <h2>믿는 신 (종교) 선택</h2>
+      <div id="faith-container"></div>
+
+      <button class="submit-btn" id="submit-btn">결과 확인</button>
+
+      <div class="final-stats" id="final-stats"></div>
+    </div>
+  </div>
+
+  <div class="dice-container">
+    🎲 주사위 굴리기<br />
+    <button onclick="rollDice()">1d6</button>
+    <div id="dice-result"></div>
+  </div>
+
+  <script>
+    let totalPoints = 20;
+
+    const difficultyLevels = {
+      '쉬움': 25,
+      '보통': 20,
+      '어려움': 15
+    };
+
+    const worldDescriptions = {
+      '벨루아 대륙': '전쟁과 마력이 공존하는 대륙.',
+      '아르케노스 제국': '기계와 마법이 충돌하는 강력한 제국.',
+      '라그나로크 평원': '끝없는 전쟁의 저주받은 들판.'
+    };
+
+    const worldImages = {
+      '벨루아 대륙': 'https://example.com/world1.jpg',
+      '아르케노스 제국': 'https://example.com/world2.jpg',
+      '라그나로크 평원': 'https://example.com/world3.jpg'
+    };
+
+    const stats = [
+      { key: 'STR', name: '힘 (STR)', value: 5, min: 1, max: 10 },
+      { key: 'DEX', name: '민첩 (DEX)', value: 5, min: 1, max: 10 },
+      { key: 'INT', name: '지능 (INT)', value: 5, min: 1, max: 10 },
+      { key: 'CON', name: '체력 (CON)', value: 5, min: 1, max: 10 }
+    ];
+
+    const traits = [
+      { id: 'strong', name: '강인함 (포인트 -2)', cost: -2, image: 'power.png' },
+      { id: 'quick', name: '민첩한 손놀림 (포인트 -2)', cost: -2, image: 'https://example.com/trait_quick.jpg' },
+      { id: 'fragile', name: '허약함 (포인트 +2)', cost: 2, image: 'https://example.com/trait_fragile.jpg' },
+      { id: 'clumsy', name: '서투름 (포인트 +2)', cost: 2, image: 'https://example.com/trait_clumsy.jpg' }
+    ];
+
+    const faiths = [
+      { id: 'none', name: '없음', image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Black_flag.svg/120px-Black_flag.svg.png' },
+      { id: 'sun', name: '태양신', image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Sun_symbol.svg/120px-Sun_symbol.svg.png' },
+      { id: 'earth', name: '대지의 여신', image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/58/Earth_icon.svg/120px-Earth_icon.svg.png' },
+      { id: 'wind', name: '바람의 신', image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Weather-wind.svg/120px-Weather-wind.svg.png' },
+      { id: 'dark', name: '어둠의 신', image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Darkness_icon.svg/120px-Darkness_icon.svg.png' },
+      { id: 'wisdom', name: '지혜의 신', image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/Light_bulb_icon.svg/120px-Light_bulb_icon.svg.png' }
+    ];
+
+    const selectedTraits = new Set();
+    let selectedFaith = 'none';
+
+    const statsContainer = document.getElementById('stats-container');
+    const remainingEl = document.getElementById('remaining-points');
+    const traitsContainer = document.getElementById('traits-container');
+    const submitBtn = document.getElementById('submit-btn');
+    const finalStatsEl = document.getElementById('final-stats');
+    const charNameEl = document.getElementById('char-name');
+    const worldSelect = document.getElementById('world-select');
+    const jobSelect = document.getElementById('job-select');
+    const genderSelect = document.getElementById('gender-select');
+    const difficultySelect = document.getElementById('difficulty-select');
+    const worldDescription = document.getElementById('world-description');
+    const worldImage = document.getElementById('world-image');
+    const diceResult = document.getElementById('dice-result');
+    const faithContainer = document.getElementById('faith-container');
+
+    function toggleLeftPanel() {
+      document.getElementById('left-panel').classList.toggle('closed');
+    }
+
+    function updateTotalPoints() {
+      totalPoints = difficultyLevels[difficultySelect.value];
+      renderStats();
+    }
+
+    difficultySelect.onchange = () => {
+      updateTotalPoints();
+      selectedTraits.clear();
+      renderTraits();
+      finalStatsEl.textContent = '';
+    };
+
+    worldSelect.onchange = () => {
+      worldDescription.textContent = worldDescriptions[worldSelect.value];
+      worldImage.src = worldImages[worldSelect.value];
+    };
+    worldSelect.onchange();
+
+    function renderStats() {
+      statsContainer.innerHTML = '';
+      const used = stats.reduce((sum, s) => sum + s.value, 0);
+      const remaining = totalPoints - used;
+
+      stats.forEach((stat, idx) => {
+        const div = document.createElement('div');
+        div.className = 'stat';
+        div.innerHTML = `
+          <strong>${stat.name}</strong>
+          <button onclick="changeStat(${idx}, -1)" ${stat.value <= stat.min ? 'disabled' : ''}>-</button>
+          <span>${stat.value}</span>
+          <button onclick="changeStat(${idx}, 1)" ${ (stat.value >= stat.max || remaining <= 0) ? 'disabled' : ''}>+</button>
+        `;
+        statsContainer.appendChild(div);
+      });
+
+      updateRemaining();
+    }
+
+    function changeStat(idx, delta) {
+      const used = stats.reduce((sum, s) => sum + s.value, 0);
+      if (delta > 0 && used >= totalPoints) return;
+      if (stats[idx].value + delta < stats[idx].min) return;
+      if (stats[idx].value + delta > stats[idx].max) return;
+      stats[idx].value += delta;
+      renderStats();
+    }
+
+    function updateRemaining() {
+      const used = stats.reduce((sum, s) => sum + s.value, 0);
+      remainingEl.textContent = `남은 포인트: ${totalPoints - used}`;
+    }
+
+    function renderTraits() {
+      traitsContainer.innerHTML = '';
+      traits.forEach(trait => {
+        const label = document.createElement('label');
+        label.className = 'trait';
+
+        const img = document.createElement('img');
+        img.src = trait.image;
+        img.alt = trait.name;
+        img.className = 'image-preview';
+
+        const span = document.createElement('span');
+        span.textContent = trait.name;
+
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+
+        input.checked = selectedTraits.has(trait.id);
+
+        input.onchange = () => {
+          const used = stats.reduce((sum, s) => sum + s.value, 0);
+          if (input.checked) {
+            if (trait.cost < 0 && totalPoints + trait.cost < used) {
+              alert('포인트가 부족하여 이 특성을 선택할 수 없습니다.');
+              input.checked = false;
+              return;
+            }
+            selectedTraits.add(trait.id);
+            totalPoints += trait.cost;
+          } else {
+            selectedTraits.delete(trait.id);
+            totalPoints -= trait.cost;
+          }
+          renderStats();
+          finalStatsEl.textContent = '';
+        };
+
+        label.appendChild(img);
+        label.appendChild(span);
+        label.appendChild(input);
+
+        traitsContainer.appendChild(label);
+      });
+    }
+
+    function renderFaithOptions() {
+      faithContainer.innerHTML = '';
+      faiths.forEach(faith => {
+        const div = document.createElement('div');
+        div.className = 'faith-option';
+        if (faith.id === selectedFaith) div.classList.add('selected');
+
+        div.innerHTML = `
+          <img src="${faith.image}" alt="${faith.name}" />
+          <div>${faith.name}</div>
+        `;
+
+        div.onclick = () => {
+          selectedFaith = faith.id;
+          renderFaithOptions();
+          finalStatsEl.textContent = '';
+        };
+
+        faithContainer.appendChild(div);
+      });
+    }
+
+    function rollDice() {
+      const roll = Math.floor(Math.random() * 6) + 1;
+      diceResult.textContent = `결과: ${roll}`;
+    }
+
+    submitBtn.onclick = () => {
+      const name = charNameEl.value.trim();
+      if (!name) {
+        alert('캐릭터 이름을 입력하세요!');
+        return;
+      }
+      let result = `=== 캐릭터 정보 ===\n`;
+      result += `이름: ${name}\n`;
+      result += `세계관: ${worldSelect.value}\n`;
+      result += `직업: ${jobSelect.value}\n`;
+      result += `성별: ${genderSelect.value}\n`;
+      result += `난이도: ${difficultySelect.value}\n\n`;
+
+      result += `--- 스탯 ---\n`;
+      stats.forEach(s => {
+        result += `${s.name}: ${s.value}\n`;
+      });
+
+      result += `\n--- 특성 ---\n`;
+      if (selectedTraits.size === 0) {
+        result += "없음\n";
+      } else {
+        traits.forEach(t => {
+          if (selectedTraits.has(t.id)) {
+            result += `${t.name}\n`;
+          }
+        });
+      }
+
+      const faithName = faiths.find(f => f.id === selectedFaith)?.name || '없음';
+      result += `\n--- 믿는 신 ---\n${faithName}\n`;
+
+      finalStatsEl.textContent = result;
+    };
+    // 초기화 및 렌더링
+    updateTotalPoints();
+    renderTraits();
+    renderFaithOptions();
+  </script>
+</body>
+</html>
